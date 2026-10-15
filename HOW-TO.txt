@@ -1,0 +1,25 @@
+Cursor Chat Keepalive — 快速用法
+================================
+
+【推荐】Workbench 注入（不依赖 CDP）
+
+1. 安装 Node.js ≥ 18
+2. 在本目录执行（必要时用管理员权限）：
+     node scripts/install-workbench-inject.mjs
+3. Cursor 里：Ctrl+Shift+P → Developer: Reload Window
+4. 右下角应出现绿色「keepalive ON」
+
+做什么：
+  - 用量墙浮层 → 等约 2 秒 → 自动发一次「继续」
+  - Connection / 可重试错误 → 自动点 Resume 或 Try again
+  - 不会误点空输入时同槽位的语音按钮
+
+改脚本后重新安装 + Reload；Cursor 大版本更新覆盖 workbench.html 后再跑一次 install。
+
+Console：
+  __cursorKeepaliveStatus()
+  __cursorKeepalivePing()
+  __cursorKeepaliveReset()
+  __cursorKeepaliveStop()
+
+完整说明见 README.md。

@@ -1,0 +1,73 @@
+{
+  "cdpUrl": "http://127.0.0.1:9222",
+  "pollMs": 1500,
+  "reconnectCooldownMs": 12000,
+  "maxReconnectPerHour": 40,
+  "continueText": "继续",
+  "cursorExeCandidates": [
+    "D:\\ProgramFiles\\cursor\\Cursor.exe",
+    "%LOCALAPPDATA%\\Programs\\cursor\\Cursor.exe",
+    "%LOCALAPPDATA%\\Cursor\\Cursor.exe"
+  ],
+  "targetPageMatch": [
+    "cursor",
+    "workbench",
+    "agents"
+  ],
+  "scenarios": [
+    {
+      "id": "usage_limit",
+      "action": "type_continue",
+      "textIncludesAny": [
+        "You've hit your usage limit",
+        "hit your usage limit",
+        "Upgrade to Pro",
+        "usage limit",
+        "已达到使用限额",
+        "达到用量限制"
+      ]
+    },
+    {
+      "id": "generic_disconnect",
+      "action": "click_button",
+      "textIncludesAny": [
+        "Connection error",
+        "connection error",
+        "网络错误",
+        "连接中断",
+        "Disconnected",
+        "Try again",
+        "Retry",
+        "重新连接",
+        "重试",
+        "Agent stopped",
+        "Request failed",
+        "stream error",
+        "Something went wrong"
+      ]
+    }
+  ],
+  "reconnectActions": {
+    "buttonTextIncludes": [
+      "Try again",
+      "Retry",
+      "Resume",
+      "Continue",
+      "重新连接",
+      "重试",
+      "继续",
+      "恢复"
+    ]
+  },
+  "composer": {
+    "placeholderIncludes": [
+      "Plan, search, build anything",
+      "Ask",
+      "Message",
+      "Add a follow-up",
+      "跟进",
+      "继续"
+    ]
+  },
+  "statusHud": true
+}

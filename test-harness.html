@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>keepalive harness</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #1e1e1e;
+        color: #ddd;
+        padding: 24px;
+      }
+      .banner {
+        display: none;
+        margin: 16px 0;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #3a2f14;
+        border: 1px solid #b08900;
+      }
+      .banner.show {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .composer {
+        margin-top: 40vh;
+        width: min(720px, 100%);
+      }
+      textarea {
+        width: 100%;
+        min-height: 72px;
+        background: #111;
+        color: #eee;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 10px;
+      }
+      button {
+        margin-top: 8px;
+        padding: 6px 12px;
+      }
+      #log {
+        white-space: pre-wrap;
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>keepalive 本地联调页</h1>
+    <p>先在 Console 粘贴 inject.js，再点「模拟 usage limit」。</p>
+    <button id="sim">模拟 usage limit</button>
+    <button id="clear">清除横幅</button>
+
+    <div id="banner" class="banner">
+      <span>⚠️ You've hit your usage limit. Get Cursor Pro for more Agent usage, unlimited Tab, and more.</span>
+      <button type="button">Upgrade to Pro</button>
+    </div>
+
+    <div class="composer">
+      <textarea placeholder="Plan, search, build anything" id="box"></textarea>
+      <div>最近发送内容会显示在下方（拦截 Enter 便于观察）</div>
+      <div id="log"></div>
+    </div>
+
+    <script>
+      const box = document.getElementById('box');
+      const log = document.getElementById('log');
+      document.getElementById('sim').onclick = () => {
+        document.getElementById('banner').classList.add('show');
+      };
+      document.getElementById('clear').onclick = () => {
+        document.getElementById('banner').classList.remove('show');
+      };
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          log.textContent += `SEND: ${box.value}\n`;
+        }
+      });
+      // 方便本地联调：同目录 fetch inject.js（用本地静态服或 file 可能受 CORS 限制）
+      fetch('./inject.js')
+        .then((r) => r.text())
+        .then((code) => {
+          // eslint-disable-next-line no-eval
+          eval(code);
+          log.textContent += 'inject.js loaded via fetch\n';
+        })
+        .catch(() => {
+          log.textContent += '自动加载失败：请在 Console 手动粘贴 inject.js\n';
+        });
+    </script>
+  </body>
+</html>
