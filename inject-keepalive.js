@@ -318,35 +318,115 @@
 
   function isRetryActionLabel(label) {
     label = (label || '').replace(/\s+/g, ' ').trim();
-    if (!label || label.length > 24) return false;
-    if (/upgrade|pro|升级/i.test(label)) return false;
+    if (!label || label.length > 40) return false;
+    if (/upgrade|pro|升级|copy request/i.test(label)) return false;
     for (var i = 0; i < CFG.retryButtonLabels.length; i++) {
-      if (new RegExp('^' + CFG.retryButtonLabels[i].replace(/\s+/g, '\\s+') + '$', 'i').test(label)) {
+      var needle = CFG.retryButtonLabels[i].replace(/\s+/g, '\\s+');
+      // 允许「Resume ▾」这类带箭头后缀
+      if (new RegExp('^' + needle + '(\\s*[\\u25BE\\u25BC\\u25B2▼▲▾▴]?)?$', 'i').test(label)) {
+        return true;
+      }
+      if (new RegExp('^' + needle + '\\b', 'i').test(label) && label.length <= 16) {
         return true;
       }
     }
     return false;
   }
 
-  /**
-   * 一出现就点：Cursor 错误浮层才会挂 id:"resume" → label Resume|Try again。
-   * DOM 常是 button，或 div.hover-opacity（不是常驻控件）。
-   */
-  function findErrorRetryAction() {
+  /** 仅排除消息气泡正文；错误条在 conversation 面板内，不能用 class*=conversation 误杀 */
+  function looksLikeMessageBubble(el) {
+    if (!el || !el.closest) return false;
+    try {
+      return !!el.closest(
+        '[data-message-role], [data-message-id], .composer-human-message, .composer-ai-message, .markdown-root, .anysphere-markdown-container-root',
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function looksLikeRetryableErrorText(text) {
+    text = (text || '').replace(/\s+/g, ' ');
+    return (
+      /internal\s*error/i.test(text) ||
+      /unexpected error occurred on our servers/i.test(text) ||
+      /copy request/i.test(text) ||
+      /connection (?:failed|error|lost|closed)/i.test(text) ||
+      /try again/i.test(text) ||
+      /agent.*(?:stopped|interrupted|error)/i.test(text)
+    );
+  }
+
+  function findRetryableErrorPanel() {
     var found = null;
     walkDeep(document, function (root) {
       if (found) return;
       var nodes;
       var i;
       var el;
+      var t;
+      var rect;
+      try {
+        nodes = root.querySelectorAll ? root.querySelectorAll('div, section, aside, li') : [];
+      } catch (_) {
+        return;
+      }
+      for (i = 0; i < nodes.length; i++) {
+        el = nodes[i];
+        if (!visible(el)) continue;
+        if (looksLikeMessageBubble(el)) continue;
+        t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim();
+        if (!looksLikeRetryableErrorText(t)) continue;
+        if (t.length > 600) continue;
+        rect = el.getBoundingClientRect();
+        if (rect.width < 160 || rect.height < 28) continue;
+        if (rect.width > 960 || rect.height > 280) continue;
+        // 优先更小的错误条（真正的 toast），不是整页
+        if (!found || rect.height < found.rect.height) {
+          found = { el: el, rect: rect, text: t };
+        }
+      }
+    }, 0);
+    return found ? found.el : null;
+  }
+
+  function scoreRetryCandidate(el, label, panel) {
+    var score = 1;
+    if (
+      (el.getAttribute && el.getAttribute('data-id') === 'resume') ||
+      el.id === 'resume'
+    ) {
+      score += 10;
+    }
+    if (el.classList && el.classList.contains('hover-opacity')) score += 8;
+    if (/^resume/i.test(label)) score += 6;
+    if (/^try\s*again/i.test(label)) score += 5;
+    if (panel && panel.contains && panel.contains(el)) score += 20;
+    try {
+      if (getComputedStyle(el).cursor === 'pointer') score += 2;
+    } catch (_) {}
+    return score;
+  }
+
+  /**
+   * 一出现就点：错误条上的 div.hover-opacity「Resume」/「Try again」（Solid 绑 click）。
+   * 注意：浮层挂在 Agent conversation 面板里，绝不能用 class*=conversation 整段跳过。
+   */
+  function findErrorRetryAction() {
+    var panel = findRetryableErrorPanel();
+    var bestScore = -1;
+    var best = null;
+
+    function considerRoot(root) {
+      var nodes;
+      var i;
+      var el;
       var label;
       var score;
-      var bestScore = -1;
-      var best = null;
       try {
         nodes = root.querySelectorAll
           ? root.querySelectorAll(
-              'button, a, [role="button"], .hover-opacity, [data-id="resume"], [id="resume"]',
+              'button, a, [role="button"], .hover-opacity, [data-id="resume"], [id="resume"], div[style*="cursor"]',
             )
           : [];
       } catch (_) {
@@ -356,25 +436,52 @@
         el = nodes[i];
         if (!visible(el)) continue;
         if (el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
-        if (looksLikeChatHistory(el)) continue;
+        // 只跳过消息气泡里的假 Resume；错误条本身要保留
+        if (looksLikeMessageBubble(el) && !(panel && panel.contains(el))) continue;
         label = buttonLabel(el);
         if (!isRetryActionLabel(label)) continue;
-        score = 1;
-        if (
-          (el.getAttribute && el.getAttribute('data-id') === 'resume') ||
-          el.id === 'resume'
-        ) {
-          score += 10;
+        // 若已定位错误条，优先只要条内按钮
+        if (panel && !panel.contains(el)) {
+          // 仍保留全局候选，但分低
         }
-        if (el.classList && el.classList.contains('hover-opacity')) score += 5;
+        score = scoreRetryCandidate(el, label, panel);
         if (score > bestScore) {
           bestScore = score;
-          best = { el: el, label: label, key: label };
+          best = { el: el, label: label, key: label + '@' + Math.round(el.getBoundingClientRect().top) };
         }
       }
-      if (best) found = best;
+    }
+
+    if (panel) considerRoot(panel);
+    walkDeep(document, function (root) {
+      considerRoot(root);
     }, 0);
-    return found;
+
+    return best;
+  }
+
+  function fireClick(el) {
+    if (!el) return false;
+    var opts = { bubbles: true, cancelable: true, view: window, composed: true };
+    try {
+      el.dispatchEvent(new PointerEvent('pointerdown', opts));
+    } catch (_) {}
+    try {
+      el.dispatchEvent(new MouseEvent('mousedown', opts));
+    } catch (_) {}
+    try {
+      el.dispatchEvent(new PointerEvent('pointerup', opts));
+    } catch (_) {}
+    try {
+      el.dispatchEvent(new MouseEvent('mouseup', opts));
+    } catch (_) {}
+    try {
+      el.dispatchEvent(new MouseEvent('click', opts));
+    } catch (_) {}
+    try {
+      if (typeof el.click === 'function') el.click();
+    } catch (_) {}
+    return true;
   }
 
   function clickErrorRetry(force) {
@@ -395,13 +502,18 @@
       return false;
     }
 
-    if (!force && Date.now() - lastRetryAt < CFG.retryCooldownMs) return false;
-
-    try {
-      hit.el.click();
-    } catch (_) {
+    // 错误条出现后尽快点；冷却只挡连点，不挡首次
+    if (!force && retryAlreadyClicked && Date.now() - lastRetryAt < CFG.retryCooldownMs) {
       return false;
     }
+    if (!force && !retryAlreadyClicked && Date.now() - lastRetryAt < 600) {
+      // 防 MutationObserver 同帧连点
+      return false;
+    }
+
+    log('clicking retry', hit.label, hit.key);
+    setHud('keepalive: clicking ' + hit.label + '…', true);
+    if (!fireClick(hit.el)) return false;
 
     retryAlreadyClicked = true;
     lastRetryAt = Date.now();
@@ -727,13 +839,13 @@
   }
 
   function act(force) {
-    if (submitInFlight) return;
-
-    // 1) 额度墙 →「继续」
-    var handledUsage = handleUsageBanner(force);
-
-    // 2) internal / connection 浮窗 → Resume / Try again
+    // Resume 与发「继续」互不阻塞：错误条出现时即使正在打字/等发送也要点
     var clickedRetry = clickErrorRetry(force);
+
+    var handledUsage = false;
+    if (!submitInFlight) {
+      handledUsage = handleUsageBanner(force);
+    }
 
     if (!handledUsage && !clickedRetry && !findErrorRetryAction()) {
       setHud('keepalive ON', false);
