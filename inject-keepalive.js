@@ -1,10 +1,10 @@
 /**
- * Cursor Chat Keepalive
- * 1) 额度墙浮层 → 等 2s → 只发一次「继续」（只点发送态按钮）
- * 2) internal / connection 错误浮层 → 点 Resume / Try again（同一次只点一次）
+ * cursor-agent-keepalive (workbench inject)
+ * 1) 用量墙 → 等 2s → 只发一次「继续」（只点发送态，不点语音）
+ * 2) 可重试错误浮层 → 点 Resume / Try again（同一次只点一次）
  *
- * 安装：node scripts/install-workbench-inject.mjs
- * 然后 Reload Window
+ * 安装：node scripts/install-workbench-inject.mjs → Reload Window
+ * 仓库：https://github.com/Luochenself/cursor-agent-keepalive
  */
 (function () {
   'use strict';

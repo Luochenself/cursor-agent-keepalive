@@ -1,9 +1,9 @@
 /**
- * 把 keepalive 脚本拷进 Cursor workbench 目录，并在 workbench.html 里挂上 <script src>。
- * 这样不依赖「Enable Custom CSS」（你之前只写了 settings，html 从未被改，所以一直不生效）。
+ * cursor-agent-keepalive — 安装到 Cursor workbench
+ * 拷贝 inject-keepalive.js，并在 workbench.html 挂 <script src>（CSP 禁止 inline）。
  *
- * 用法（管理员 PowerShell 更稳）：
  *   node scripts/install-workbench-inject.mjs
+ * 然后 Ctrl+Shift+P → Developer: Reload Window
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -128,7 +128,7 @@ function main() {
     console.log('OK 脚本文件:', destJs);
   }
   console.log('下一步: Ctrl+Shift+P → Developer: Reload Window');
-  console.log('验收: 右下角绿色 keepalive ON；额度条出现后应发「继续」');
+  console.log('验收: 右下角 keepalive ON；用量墙→「继续」；错误浮层→Resume/Try again');
 }
 
 main();

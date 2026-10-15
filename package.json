@@ -1,16 +1,21 @@
 {
-  "name": "cursor-chat-keepalive",
-  "version": "0.1.0",
+  "name": "cursor-agent-keepalive",
+  "version": "0.2.0",
   "private": true,
-  "description": "Cursor Agent keepalive: auto「继续」on usage limit, auto Resume/Try again on retryable errors (workbench inject)",
+  "description": "Cursor Agent keepalive via workbench inject: auto「继续」on usage limit, auto Resume/Try again on retryable errors",
   "type": "module",
   "scripts": {
+    "install-inject": "node scripts/install-workbench-inject.mjs",
     "start": "node src/index.js",
     "probe": "node src/probe.js",
     "launch-cursor": "node src/launch-cursor.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luochenself/cursor-agent-keepalive.git"
   },
   "dependencies": {
     "puppeteer-core": "^24.22.3"
