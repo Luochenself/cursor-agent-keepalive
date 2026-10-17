@@ -2,6 +2,7 @@
  * cursor-agent-keepalive (workbench inject)
  * 1) 用量墙 → 等 2s → 只发一次「继续」（只点发送态，不点语音）
  * 2) 可重试错误浮层 → 点 Resume / Try again（同一次只点一次）
+ * 3) 营销弹窗（如 Cursor is now on iOS）→ 自动点右上角叉号关掉
  *
  * 安装：node scripts/install-workbench-inject.mjs → Reload Window
  * 仓库：https://github.com/Luochenself/cursor-agent-keepalive
@@ -46,6 +47,14 @@
     retryButtonLabels: ['Resume', 'Try again', 'Retry', '重试', '恢复'],
     // 同一颗重试键只点一次；消失后再出现可再点
     retryCooldownMs: 8000,
+    // 营销弹窗标题/文案（命中后找叉号）
+    promoPhrases: [
+      'Cursor is now on iOS',
+      'Build from anywhere',
+      'Kick off agents, review demos',
+      'Download now',
+    ],
+    promoDismissCooldownMs: 4000,
   };
 
   var lastActionAt = 0;
@@ -62,6 +71,8 @@
   var lastRetryAt = 0;
   var retryAlreadyClicked = false;
   var lastRetryKey = '';
+  var lastPromoDismissAt = 0;
+  var promoDismissedKey = '';
 
   function log() {
     try {
@@ -95,10 +106,13 @@
     lastRetryAt = 0;
     retryAlreadyClicked = false;
     lastRetryKey = '';
+    lastPromoDismissAt = 0;
+    promoDismissedKey = '';
     log('cooldown reset');
   };
   window.__cursorKeepaliveStatus = function () {
     var retry = findErrorRetryAction();
+    var promo = findPromoModal();
     return {
       running: true,
       lastActionAt: lastActionAt,
@@ -113,6 +127,10 @@
       retry: retry ? { label: retry.label, key: retry.key } : null,
       retryAlreadyClicked: retryAlreadyClicked,
       lastRetryAt: lastRetryAt,
+      promo: promo
+        ? { key: promo.key, hasClose: !!promo.closeEl, text: (promo.text || '').slice(0, 60) }
+        : null,
+      lastPromoDismissAt: lastPromoDismissAt,
     };
   };
   window.__cursorKeepalivePing = function () {
@@ -484,6 +502,170 @@
     return true;
   }
 
+  function looksLikePromoText(text) {
+    text = (text || '').replace(/\s+/g, ' ');
+    if (!text) return false;
+    for (var i = 0; i < CFG.promoPhrases.length; i++) {
+      if (text.indexOf(CFG.promoPhrases[i]) >= 0) return true;
+    }
+    return /Cursor is now on iOS/i.test(text);
+  }
+
+  function isCloseControl(el) {
+    if (!el || !visible(el)) return false;
+    var tag = (el.tagName || '').toLowerCase();
+    var role = (el.getAttribute && el.getAttribute('role')) || '';
+    var label = (
+      (el.getAttribute &&
+        (el.getAttribute('aria-label') ||
+          el.getAttribute('title') ||
+          el.getAttribute('data-testid') ||
+          '')) ||
+      ''
+    ).toLowerCase();
+    var text = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim();
+    if (/close|dismiss|关闭|关掉|cancel/i.test(label)) return true;
+    if (/^(×|✕|✖|x|X|⨯)$/.test(text)) return true;
+    if (tag === 'button' || role === 'button' || (el.getAttribute && el.getAttribute('tabindex') != null)) {
+      if (text.length <= 2 && /[×✕✖xX⨯]/.test(text)) return true;
+    }
+    try {
+      var cls = String(el.className || '');
+      if (/codicon-close|dialog-close|modal-close|btn-close|close-button/i.test(cls)) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function pickCloseIn(root) {
+    if (!root || !root.querySelectorAll) return null;
+    var sels = [
+      'button[aria-label*="close" i]',
+      'button[aria-label*="Close" i]',
+      'button[aria-label*="dismiss" i]',
+      'button[title*="close" i]',
+      '[role="button"][aria-label*="close" i]',
+      'button.codicon-close',
+      '.codicon-close',
+      '[class*="close-button"]',
+      '[class*="dialog-close"]',
+      '[data-testid*="close"]',
+    ];
+    var i, j, nodes, el;
+    for (i = 0; i < sels.length; i++) {
+      try {
+        nodes = root.querySelectorAll(sels[i]);
+      } catch (_) {
+        continue;
+      }
+      for (j = 0; j < nodes.length; j++) {
+        el = nodes[j];
+        if (isCloseControl(el) || visible(el)) {
+          if (visible(el)) return el;
+        }
+      }
+    }
+    try {
+      nodes = root.querySelectorAll('button, [role="button"], a, div[tabindex], span[tabindex]');
+    } catch (_) {
+      return null;
+    }
+    for (j = 0; j < nodes.length; j++) {
+      el = nodes[j];
+      if (isCloseControl(el)) return el;
+    }
+    return null;
+  }
+
+  /** 「Cursor is now on iOS」一类营销弹窗 + 右上角叉号 */
+  function findPromoModal() {
+    var found = null;
+    walkDeep(document, function (root) {
+      if (found) return;
+      var nodes;
+      var i;
+      var el;
+      var t;
+      var rect;
+      var closeEl;
+      var panel;
+      try {
+        nodes = root.querySelectorAll
+          ? root.querySelectorAll('[role="dialog"], [aria-modal="true"], div, section, aside')
+          : [];
+      } catch (_) {
+        return;
+      }
+      for (i = 0; i < nodes.length; i++) {
+        el = nodes[i];
+        if (!visible(el)) continue;
+        if (looksLikeMessageBubble(el)) continue;
+        t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim();
+        if (!looksLikePromoText(t)) continue;
+        if (t.length > 1200) continue;
+        rect = el.getBoundingClientRect();
+        // 弹窗体量：比 toast 大，又不是整页
+        if (rect.width < 280 || rect.height < 200) continue;
+        if (rect.width > 1100 || rect.height > 900) continue;
+        panel = el;
+        closeEl = pickCloseIn(panel);
+        if (!closeEl && panel.parentElement) closeEl = pickCloseIn(panel.parentElement);
+        found = {
+          el: panel,
+          closeEl: closeEl,
+          text: t.slice(0, 120),
+          key: 'promo:' + t.slice(0, 40),
+        };
+        return;
+      }
+    });
+    return found;
+  }
+
+  function dismissPromoModal(force) {
+    var hit = findPromoModal();
+    if (!hit) {
+      promoDismissedKey = '';
+      return false;
+    }
+
+    if (promoDismissedKey === hit.key && !force) {
+      if (Date.now() - lastPromoDismissAt < CFG.promoDismissCooldownMs) {
+        setHud('keepalive: promo closing…', true);
+        return true;
+      }
+    }
+
+    if (!force && Date.now() - lastPromoDismissAt < 800) return true;
+
+    log('dismiss promo', hit.text);
+    setHud('keepalive: close promo…', true);
+
+    var clicked = false;
+    if (hit.closeEl) {
+      clicked = fireClick(hit.closeEl);
+    }
+    if (!clicked) {
+      // 叉号选择器没挂上时：Esc 关掉 modal
+      try {
+        var opts = { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true };
+        document.dispatchEvent(new KeyboardEvent('keydown', opts));
+        if (hit.el && hit.el.dispatchEvent) hit.el.dispatchEvent(new KeyboardEvent('keydown', opts));
+        clicked = true;
+        log('promo Escape fallback');
+      } catch (_) {}
+    }
+
+    if (!clicked) return false;
+
+    promoDismissedKey = hit.key;
+    lastPromoDismissAt = Date.now();
+    lastActionAt = lastPromoDismissAt;
+    lastReason = 'promo_dismiss';
+    actionCount += 1;
+    setHud('keepalive: promo closed', true);
+    return true;
+  }
+
   function clickErrorRetry(force) {
     var hit = findErrorRetryAction();
     if (!hit) {
@@ -839,6 +1021,9 @@
   }
 
   function act(force) {
+    // 营销弹窗挡操作：优先叉掉
+    var dismissedPromo = dismissPromoModal(force);
+
     // Resume 与发「继续」互不阻塞：错误条出现时即使正在打字/等发送也要点
     var clickedRetry = clickErrorRetry(force);
 
@@ -847,7 +1032,13 @@
       handledUsage = handleUsageBanner(force);
     }
 
-    if (!handledUsage && !clickedRetry && !findErrorRetryAction()) {
+    if (
+      !dismissedPromo &&
+      !handledUsage &&
+      !clickedRetry &&
+      !findErrorRetryAction() &&
+      !findPromoModal()
+    ) {
       setHud('keepalive ON', false);
     }
   }

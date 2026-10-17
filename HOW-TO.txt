@@ -4,6 +4,7 @@ cursor-agent-keepalive — 快速用法
 作用：
   - Agent 用量墙 → 等约 2 秒 → 自动发一次「继续」
   - Connection / 可重试错误 → 自动点 Resume 或 Try again
+  - 营销弹窗（Cursor is now on iOS 等）→ 自动点叉号关掉
   - 不点空输入时同槽位的语音按钮
 
 安装（推荐 · Workbench 注入）：

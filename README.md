@@ -8,6 +8,7 @@
 |----------|----------|
 | 用量墙（You've hit your usage limit / Upgrade to Pro 等） | 等约 **2 秒** → 输入框发一次「继续」（只点**发送**态按钮，不点空输入时的语音键） |
 | 可重试错误（Connection failed / stalled、Server error、Agent connection lost 等） | 一出现 **Resume** 或 **Try again** 就点一次 |
+| 营销弹窗（如 **Cursor is now on iOS** / Download now） | 自动点右上角叉号关掉（找不到叉则 Esc） |
 
 同一次浮层只处理一次；浮层消失后再出现才会再动。
 
