@@ -21,6 +21,17 @@ assert.equal(hit?.id, 'usage_limit');
 assert.equal(hit?.action, 'type_continue');
 assert.ok(hit.matched.includes("You've hit your usage limit"));
 
+const weekly = `
+Weekly usage limit reached. It resets in 6 days.
+Upgrade your plan for more weekly usage.
+Upgrade Plan
+`;
+const weeklyHit = matchScenario(weekly, cfg.scenarios);
+assert.equal(weeklyHit?.id, 'usage_limit');
+assert.equal(weeklyHit?.action, 'type_continue');
+assert.ok(weeklyHit.matched.includes('Weekly usage limit reached'));
+assert.equal(isUsageLimitText(weekly), true);
+
 const quiet = matchScenario('Agent is working on your request…', cfg.scenarios);
 assert.equal(quiet, null);
 assert.equal(isUsageLimitText(sample), true);
@@ -28,9 +39,19 @@ assert.equal(isUsageLimitText('hello'), false);
 
 const injectSrc = readFileSync(path.join(root, 'inject-keepalive.js'), 'utf8');
 assert.match(injectSrc, /You've hit your usage limit/);
-assert.match(injectSrc, /continueText:\s*'继续'/);
+assert.match(injectSrc, /Weekly usage limit reached/);
+assert.match(injectSrc, /Upgrade Plan/);
+assert.match(injectSrc, /usage-limit-policy-banner/);
+assert.match(injectSrc, /composer-error-title/);
+assert.match(injectSrc, /isHardUsageWallText/);
+assert.match(injectSrc, /installApiWallHooks/);
+assert.match(injectSrc, /detectUsageWall/);
+assert.match(injectSrc, /__cursorKeepaliveDebugScan/);
+assert.match(injectSrc, /KEEPALIVE_BUILD/);
+assert.match(injectSrc, /continueText:\s*CONTINUE/);
+assert.match(injectSrc, /\\u7ee7\\u7eed/);
 assert.match(injectSrc, /__cursor_keepalive_hud/);
 assert.match(injectSrc, /\.aislash-editor-input/);
 assert.match(injectSrc, /ui-prompt-input-submit-button/);
 
-console.log('selftest-detector OK', hit);
+console.log('selftest-detector OK', hit, weeklyHit);

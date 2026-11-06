@@ -20,8 +20,13 @@
       "action": "type_continue",
       "textIncludesAny": [
         "You've hit your usage limit",
+        "You've reached your usage limit",
         "hit your usage limit",
+        "Weekly usage limit reached",
+        "Monthly usage limit reached",
         "Upgrade to Pro",
+        "Upgrade Plan",
+        "Upgrade your plan for more",
         "usage limit",
         "已达到使用限额",
         "达到用量限制"

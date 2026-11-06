@@ -16,6 +16,8 @@ const injectSrc = path.join(root, 'inject-keepalive.js');
 const MARK_START = '<!-- !! CURSOR-CHAT-KEEPALIVE-START !! -->';
 const MARK_END = '<!-- !! CURSOR-CHAT-KEEPALIVE-END !! -->';
 const SCRIPT_NAME = 'cursor-chat-keepalive.js';
+/** 每次安装换 query，避免 Electron 缓存旧 JS（否则会 DebugScan is not defined） */
+const SCRIPT_VER = String(Date.now());
 
 const candidates = [
   path.join('D:', 'ProgramFiles', 'cursor', 'resources', 'app', 'out', 'vs', 'code', 'electron-sandbox', 'workbench'),
@@ -77,7 +79,7 @@ function patchHtml(html) {
   );
   const snippet =
     `${MARK_START}\n` +
-    `<script src="./${SCRIPT_NAME}"></script>\n` +
+    `<script src="./${SCRIPT_NAME}?${SCRIPT_VER}"></script>\n` +
     `${MARK_END}\n`;
   if (!html.includes('</head>')) {
     throw new Error('workbench.html missing </head>');
@@ -127,8 +129,9 @@ function main() {
     console.log('OK 外部脚本注入:', htmlPath);
     console.log('OK 脚本文件:', destJs);
   }
-  console.log('下一步: Ctrl+Shift+P → Developer: Reload Window');
-  console.log('验收: 右下角 keepalive ON；用量墙→「继续」；错误浮层→Resume/Try again');
+  console.log('下一步: 必须完全退出 Cursor 再打开（不要只 Reload，否则会吃旧缓存）');
+  console.log('验收: 右下角 keepalive ON 2026-10-22g；点 .announcement-modal-close-button；Console 有 DebugScan');
+  console.log('cache-bust:', SCRIPT_VER);
 }
 
 main();

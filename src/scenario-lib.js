@@ -19,7 +19,7 @@ export function matchScenario(bodyText, scenarios) {
 }
 
 export function isUsageLimitText(text) {
-  return /You've hit your usage limit|hit your usage limit|Upgrade to Pro|Get Cursor Pro for more Agent usage|usage limit|已达到使用限额|达到用量限制/i.test(
+  return /You've hit your usage limit|You've reached your usage limit|hit your usage limit|Weekly usage limit reached|Monthly usage limit reached|Upgrade to Pro|Upgrade Plan|Upgrade your plan for more|Get Cursor Pro for more Agent usage|usage limit|已达到使用限额|达到用量限制/i.test(
     String(text || ''),
   );
 }

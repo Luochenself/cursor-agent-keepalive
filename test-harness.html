@@ -51,12 +51,17 @@
   <body>
     <h1>keepalive 本地联调页</h1>
     <p>先在 Console 粘贴 inject.js，再点「模拟 usage limit」。</p>
-    <button id="sim">模拟 usage limit</button>
+    <button id="sim">模拟旧 usage limit</button>
+    <button id="simWeekly">模拟 Weekly usage limit</button>
     <button id="clear">清除横幅</button>
 
     <div id="banner" class="banner">
       <span>⚠️ You've hit your usage limit. Get Cursor Pro for more Agent usage, unlimited Tab, and more.</span>
       <button type="button">Upgrade to Pro</button>
+    </div>
+    <div id="bannerWeekly" class="banner">
+      <span>Weekly usage limit reached. It resets in 6 days. Upgrade your plan for more weekly usage.</span>
+      <button type="button">Upgrade Plan</button>
     </div>
 
     <div class="composer">
@@ -69,10 +74,16 @@
       const box = document.getElementById('box');
       const log = document.getElementById('log');
       document.getElementById('sim').onclick = () => {
+        document.getElementById('bannerWeekly').classList.remove('show');
         document.getElementById('banner').classList.add('show');
+      };
+      document.getElementById('simWeekly').onclick = () => {
+        document.getElementById('banner').classList.remove('show');
+        document.getElementById('bannerWeekly').classList.add('show');
       };
       document.getElementById('clear').onclick = () => {
         document.getElementById('banner').classList.remove('show');
+        document.getElementById('bannerWeekly').classList.remove('show');
       };
       box.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
